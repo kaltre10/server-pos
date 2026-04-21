@@ -1,7 +1,7 @@
 const { Sequelize } = require('sequelize');
 const pg = require('pg');
 
-const connectionString = "postgresql://postgres.amqhlxpmcacpwnnhjjac:Milka140225-.@aws-1-us-east-1.pooler.supabase.com:6543/postgres"
+const connectionString = process.env.DATABASE_URL
 
 if (!global.sequelize) {
   global.sequelize = new Sequelize(connectionString, {
