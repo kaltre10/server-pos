@@ -179,9 +179,11 @@ router.post('/:id/void', async (req, res) => {
 router.get('/statistics/summary', async (req, res) => {
   try {
     const { startDate, endDate, period } = req.query;
+    const dialect = sequelize.getDialect();
     
     // Set default dates to today if not provided
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const actualStartDate = startDate || today;
     const actualEndDate = endDate || today;
 
@@ -232,6 +234,9 @@ router.get('/statistics/summary', async (req, res) => {
     let topProductsInfo = [];
     if (completedSales.length > 0) {
       const saleIds = completedSales.map(s => s.id);
+      const saleProductRevenueExpression = dialect === 'postgres'
+        ? '"SaleProduct"."quantity" * "SaleProduct"."priceBs"'
+        : 'SaleProduct.quantity * SaleProduct.priceBs';
 
       const topProducts = await SaleProduct.findAll({
         where: {
@@ -240,7 +245,7 @@ router.get('/statistics/summary', async (req, res) => {
         attributes: [
           'ProductId', 
           [sequelize.fn('SUM', sequelize.col('quantity')), 'totalQuantity'],
-          [sequelize.fn('SUM', sequelize.literal('SaleProduct.quantity * SaleProduct.priceBs')), 'totalRevenueBs']
+          [sequelize.fn('SUM', sequelize.literal(saleProductRevenueExpression)), 'totalRevenueBs']
         ],
         group: ['ProductId'],
         order: [[sequelize.fn('SUM', sequelize.col('quantity')), 'DESC']],
@@ -259,7 +264,6 @@ router.get('/statistics/summary', async (req, res) => {
 
     // 4. Chart Data
     let dateFunc;
-    const dialect = sequelize.getDialect();
     if (dialect === 'sqlite') {
       if (period === 'month') {
         dateFunc = [sequelize.fn('strftime', '%Y-%m', sequelize.col('createdAt')), 'date'];

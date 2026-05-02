@@ -23,7 +23,8 @@ router.get('/', async (req, res) => {
 // Get current day's preliminary data (before closing)
 router.get('/preview', async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     
     // Check if already closed
     const existingClosure = await DailyClosure.findOne({ where: { closureDate: today } });
@@ -52,6 +53,7 @@ router.get('/preview', async (req, res) => {
     let totalRevenueBs = 0;
     let totalRevenueDollar = 0;
     let totalProfitDollar = 0;
+    let totalProfitBs = 0;
 
     sales.forEach(sale => {
       totalRevenueBs += sale.totalAmountBs;
@@ -60,13 +62,16 @@ router.get('/preview', async (req, res) => {
       // Calculate profit for this sale
       sale.Products.forEach(product => {
         const qty = product.SaleProduct.quantity;
-        const price = product.SaleProduct.priceDollar;
-        const cost = product.SaleProduct.costDollar || product.costDollar; // Fallback to current cost if not stored in SaleProduct
-        totalProfitDollar += (price - cost) * qty;
+        const priceDollar = product.SaleProduct.priceDollar;
+        const priceBs = product.SaleProduct.priceBs;
+        const costDollar = product.SaleProduct.costDollar || product.costDollar; // Fallback to current cost if not stored in SaleProduct
+        
+        totalProfitDollar += (priceDollar - costDollar) * qty;
+        
+        const rateAtSale = priceDollar > 0 ? (priceBs / priceDollar) : 0;
+        totalProfitBs += (priceBs - (costDollar * rateAtSale)) * qty;
       });
     });
-
-    const totalProfitBs = totalProfitDollar * exchangeRateData.rate;
 
     res.json({
       alreadyClosed: false,
@@ -87,7 +92,8 @@ router.get('/preview', async (req, res) => {
 // Perform daily closure
 router.post('/', async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     
     // Check if already closed
     const existingClosure = await DailyClosure.findOne({ where: { closureDate: today } });
@@ -113,6 +119,7 @@ router.post('/', async (req, res) => {
     let totalRevenueBs = 0;
     let totalRevenueDollar = 0;
     let totalProfitDollar = 0;
+    let totalProfitBs = 0;
 
     sales.forEach(sale => {
       totalRevenueBs += sale.totalAmountBs;
@@ -120,13 +127,16 @@ router.post('/', async (req, res) => {
       
       sale.Products.forEach(product => {
         const qty = product.SaleProduct.quantity;
-        const price = product.SaleProduct.priceDollar;
-        const cost = product.SaleProduct.costDollar || product.costDollar;
-        totalProfitDollar += (price - cost) * qty;
+        const priceDollar = product.SaleProduct.priceDollar;
+        const priceBs = product.SaleProduct.priceBs;
+        const costDollar = product.SaleProduct.costDollar || product.costDollar;
+        
+        totalProfitDollar += (priceDollar - costDollar) * qty;
+        
+        const rateAtSale = priceDollar > 0 ? (priceBs / priceDollar) : 0;
+        totalProfitBs += (priceBs - (costDollar * rateAtSale)) * qty;
       });
     });
-
-    const totalProfitBs = totalProfitDollar * (exchangeRateData ? exchangeRateData.rate : 0);
 
     const closure = await DailyClosure.create({
       closureDate: today,
