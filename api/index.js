@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+require('dotenv').config();
 // const path = require('path');
 
 // Set process timezone to Venezuela
@@ -22,6 +23,7 @@ const closureRoutes = require('../routes/closures');
 const authRoutes = require('../routes/auth');
 
 const app = express();
+let databaseInitPromise;
 
 // Middleware
 app.use(cors());
@@ -51,12 +53,25 @@ async function syncDatabase() {
     // No matamos el proceso para permitir que los logs se guarden
   }
 }
-// Start server
-// const PORT = process.env.PORT || 5000;
 
-  syncDatabase();
-  // app.listen(PORT, () => {
-  //   console.log(`Servidor iniciado en el puerto ${PORT}`);
-  //   syncDatabase();
-  // });
+function initializeDatabase() {
+  if (!databaseInitPromise) {
+    databaseInitPromise = syncDatabase();
+  }
+
+  return databaseInitPromise;
+}
+
+initializeDatabase();
+
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+
+  initializeDatabase().finally(() => {
+    app.listen(PORT, () => {
+      console.log(`Servidor iniciado en el puerto ${PORT}`);
+    });
+  });
+}
+
 module.exports = app;
