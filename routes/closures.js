@@ -4,15 +4,20 @@ const { Sale, SaleProduct } = require('../models/Sale');
 const DailyClosure = require('../models/DailyClosure');
 const ExchangeRate = require('../models/ExchangeRate');
 const Product = require('../models/Product');
+const User = require('../models/User');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
+const { verifyToken, requireRole } = require('../middleware/auth');
+
+router.use(verifyToken);
 
 // Get last 10 closures
 router.get('/', async (req, res) => {
   try {
     const closures = await DailyClosure.findAll({
       order: [['closureDate', 'DESC']],
-      limit: 10
+      limit: 10,
+      include: [{ model: User, as: 'ClosedBy', attributes: ['id', 'name', 'username'] }]
     });
     res.json(closures);
   } catch (error) {
@@ -147,7 +152,8 @@ router.post('/', async (req, res) => {
       totalProfitDollar,
       exchangeRate: exchangeRateData ? exchangeRateData.rate : 0,
       profitPercentage: exchangeRateData ? exchangeRateData.profitPercentage : 0,
-      status: 'closed'
+      status: 'closed',
+      userId: req.user.id
     });
 
     res.status(201).json(closure);

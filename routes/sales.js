@@ -4,7 +4,11 @@ const Product = require('../models/Product');
 const ExchangeRate = require('../models/ExchangeRate');
 const sequelize = require('../config/database');
 const { Op } = require('sequelize');
+const User = require('../models/User');
+const { verifyToken, requireRole } = require('../middleware/auth');
 const router = express.Router();
+
+router.use(verifyToken);
 
 // Get all sales with products and optional filters
 router.get('/', async (req, res) => {
@@ -42,7 +46,7 @@ router.get('/', async (req, res) => {
 
     const sales = await Sale.findAll({
       where,
-      include: [Product],
+      include: [Product, { model: User, as: 'Seller', attributes: ['id', 'name', 'username'] }],
       order: [['createdAt', 'DESC']]
     });
     res.json(sales);
@@ -55,7 +59,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const sale = await Sale.findByPk(req.params.id, {
-      include: [Product]
+      include: [Product, { model: User, as: 'Seller', attributes: ['id', 'name', 'username'] }]
     });
     if (!sale) {
       return res.status(404).json({ message: 'Sale not found' });
@@ -102,7 +106,8 @@ router.post('/', async (req, res) => {
     // Create sale
     const sale = await Sale.create({
       totalAmountBs,
-      totalAmountDollar
+      totalAmountDollar,
+      userId: req.user.id
     });
     
     // Create sale products
@@ -131,7 +136,7 @@ router.post('/', async (req, res) => {
 });
 
 // Void a sale and restore stock
-router.post('/:id/void', async (req, res) => {
+router.post('/:id/void', requireRole(['admin']), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const sale = await Sale.findByPk(req.params.id, {
@@ -165,7 +170,7 @@ router.post('/:id/void', async (req, res) => {
     
     // Return updated sale with products
     const updatedSale = await Sale.findByPk(sale.id, {
-      include: [Product]
+      include: [Product, { model: User, as: 'Seller', attributes: ['id', 'name', 'username'] }]
     });
     
     res.json(updatedSale);

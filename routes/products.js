@@ -2,7 +2,10 @@ const express = require('express');
 const Product = require('../models/Product');
 const { SaleProduct } = require('../models/Sale');
 const ExchangeRate = require('../models/ExchangeRate');
+const { verifyToken, requireRole } = require('../middleware/auth');
 const router = express.Router();
+
+router.use(verifyToken);
 
 // Get all products
 router.get('/', async (req, res) => {
@@ -49,7 +52,7 @@ const calculatePrices = async (productData) => {
 };
 
 // Create a product
-router.post('/', async (req, res) => {
+router.post('/', requireRole(['admin']), async (req, res) => {
   try {
     const productData = await calculatePrices(req.body);
     const product = await Product.create(productData);
@@ -60,7 +63,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update a product
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireRole(['admin']), async (req, res) => {
   try {
     const productData = await calculatePrices(req.body);
     const [updated] = await Product.update(productData, {
@@ -78,7 +81,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a product
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole(['admin']), async (req, res) => {
   try {
     const hasSales = await SaleProduct.count({ where: { ProductId: req.params.id } });
     if (hasSales > 0) {

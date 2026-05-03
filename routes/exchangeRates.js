@@ -1,7 +1,10 @@
 const express = require('express');
 const ExchangeRate = require('../models/ExchangeRate');
 const Product = require('../models/Product');
+const { verifyToken, requireRole } = require('../middleware/auth');
 const router = express.Router();
+
+router.use(verifyToken);
 
 // Get recent exchange rates (last 10)
 router.get('/', async (req, res) => {
@@ -27,7 +30,7 @@ router.get('/latest', async (req, res) => {
 });
 
 // Create a new configuration and update all product prices
-router.post('/', async (req, res) => {
+router.post('/', requireRole(['admin']), async (req, res) => {
   try {
     const { rate, profitPercentage } = req.body;
     const exchangeRate = await ExchangeRate.create({ rate, profitPercentage });

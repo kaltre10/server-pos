@@ -21,6 +21,8 @@ const saleRoutes = require('../routes/sales');
 const exchangeRateRoutes = require('../routes/exchangeRates');
 const closureRoutes = require('../routes/closures');
 const authRoutes = require('../routes/auth');
+const userRoutes = require('../routes/users');
+const User = require('../models/User');
 
 const app = express();
 let databaseInitPromise;
@@ -39,6 +41,7 @@ app.use('/api/sales', saleRoutes);
 app.use('/api/exchange-rates', exchangeRateRoutes);
 app.use('/api/closures', closureRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 
 async function syncDatabase() {
   try {
@@ -46,8 +49,20 @@ async function syncDatabase() {
     await sequelize.authenticate();
     console.log('Conexión a la base de datos establecida correctamente.');
     
-    await sequelize.sync();
-    // console.log('Modelos sincronizados con la base de datos.');
+    await sequelize.sync({ alter: true });
+    
+    // Seed default admin user
+    const adminExists = await User.findOne({ where: { username: 'pos2026' } });
+    if (!adminExists) {
+      await User.create({
+        username: 'pos2026',
+        password: 'pablo2026-.',
+        name: 'Administrador Principal',
+        role: 'admin',
+        status: 'active'
+      });
+      console.log('Usuario administrador por defecto creado.');
+    }
   } catch (error) {
     console.error('ERROR CRÍTICO: No se pudo conectar/sincronizar la base de datos:', error);
     // No matamos el proceso para permitir que los logs se guarden

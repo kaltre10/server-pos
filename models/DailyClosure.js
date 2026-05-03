@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const User = require('./User');
 
 const DailyClosure = sequelize.define('DailyClosure', {
   id: {
@@ -47,5 +48,8 @@ const DailyClosure = sequelize.define('DailyClosure', {
 }, {
   timestamps: true
 });
+
+DailyClosure.belongsTo(User, { as: 'ClosedBy', foreignKey: 'userId' });
+User.hasMany(DailyClosure, { foreignKey: 'userId' });
 
 module.exports = DailyClosure;
